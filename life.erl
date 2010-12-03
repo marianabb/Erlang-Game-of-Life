@@ -1,16 +1,14 @@
 -module(life).
 -export([create/0, init_life/5, new_cell/5, 
-         cell_loop/6, check_neighbours/7, 
-         calculate_future/2, communicate/6,
-         calculate_max_n/5,
-         unregister_all/2, message_test/0]).
+         cell_loop/6, calculate_future/2, communicate/6,
+         calculate_max_n/4, unregister_all/2, message_test/0]).
 
 
--record(cell, {x, y, now_state, next_state = 'tbd'}).
+-record(cell, {x, y, now_state}).
 
 % Just a Cell creation test
 create() ->    
-    X = #cell{x=1, y=2, now_state=alive, next_state=dead},
+    X = #cell{x=1, y=2, now_state=alive},
     io:format("x is: ~p", [X]).
 
 
@@ -35,6 +33,7 @@ init_life(Width, Height, [ [X|XS] | Board], N_row, N_col) ->
         true -> State = 'dead'
     end,
     Pid = spawn(fun () -> new_cell(Width, Height, N_col, N_row, State) end),
+    io:format("Registering PID ~p as ~p~n", [Pid, list_to_atom(S_col ++ S_row)]),
     register(list_to_atom(S_col ++ S_row), Pid),
     init_life(Width, Height, [XS | Board], N_row, N_col + 1).
 
@@ -44,29 +43,36 @@ init_life(Width, Height, [ [X|XS] | Board], N_row, N_col) ->
 new_cell(W, H, X, Y, State) ->    
     Cell = #cell{x = X, y = Y, now_state = State},
     io:format("New cell ~p created~n", [Cell]),
+
     % Calculate Max_neigh according to the coordinates
-    if 
-        (X =/= 0) and (Y =/= 0) and (X =/= W-1) and (Y =/= H-1) ->
-            Max_neigh = 8;
-        true ->
-            Max_neigh = calculate_max_n(X, Y, W, H, 8)
-    end,
+    Max_neigh = calculate_max_n(X, Y, W, H),
+
     % TODO: Maybe I should wait a little before starting the loop...
+    timer:sleep(3000),
     cell_loop(W, H, Cell, 0, Max_neigh, 0).
 
-% Calculates the Maximum number of neighbours for a cell
-% that is located in a border position.
-calculate_max_n(X, Y, W, H, Max) ->
+
+% Calculates the Maximum number of neighbours for a cell.
+% Considers 3 cases: center, corner and border.
+calculate_max_n(X, Y, W, H) ->
     if 
-        (X == 0) -> calculate_max_n(1, Y, W, H, Max-3);
-        (Y == 0) -> calculate_max_n(X, 1, W, H, Max-1);
-        (X+1 == W) -> calculate_max_n(1, Y, W, H, Max-3);
-        (Y+1 == H) -> calculate_max_n(Y, 1, W, H, Max-1);
-        true -> Max
-    end.    
+        (X =/= 0) and (Y =/= 0) and (X =/= W-1) and (Y =/= H-1) ->
+            8;
+        ((X == 0) or (X+1 == W)) and ((Y == 0) or (Y+1 == H)) ->
+            3;
+        (((X == 0) or (X+1 == W)) and ((Y > 0) and (Y < H))) or
+        (((Y == 0) or (Y+1 == H)) and ((X > 0) and (X < W))) ->
+            5
+    %TODO: Else case must throw exception
+    end.
+
 
 % The function that controls the actions that every cell
-% will perform based on the messages it receives.
+% must accomplish:
+% 1. Send my status to all my neighbours
+% 2. Check if I have all my neighbours status. 
+%    If I do, calculate my next status, print it and change it.
+% 3. Wait to receive status from my neighbours.
 cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count) ->
     io:format("I am cell ~p starting!!~n", [Cell]),
 
@@ -78,16 +84,17 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count) ->
 
     % Check if I have all my neighbors status. If I do, calculate my next status.
     if (Num_neigh == Max_neigh) ->
+            io:format("I am cell ~p and I will calculate my next status~n", [Cell]),
             Future = calculate_future(Alive_count, Cell#cell.now_state),
+            % If my status has changed, change the board
             case future =/= Cell#cell.now_state of
-                true when Future == 'alive' -> 
+                true when (Future == 'alive') -> 
                     frame ! {change_cell, Cell#cell.x, Cell#cell.y, purple}; %TODO: Don't I need a "printer"??
-                true when Future == 'dead' ->
+                true when (Future == 'dead') ->
                     frame ! {change_cell, Cell#cell.x, Cell#cell.y, white} %TODO: Don't I need a "printer"?? White?
             end,
-            cell_loop(W, H, {cell, Cell#cell.x, Cell#cell.y, 
-                             Cell#cell.now_state, Future}, 
-                      0, Max_neigh, 0) %TODO: Should CHANGE my status here! Do I really need next_state?
+            cell_loop(W, H, {cell, Cell#cell.x, Cell#cell.y, Future}, 
+                      0, Max_neigh, 0)
     end,
     
     receive 
@@ -124,7 +131,7 @@ message_test() ->
 % the cell at position (X,Y) and counts the number of dead and
 % alive neighbours.
 % If the neighbour is outside the board we will say it is dead.
-% TODO: Could be simplified if we could ignore Dead_count.
+% Could be simplified if we could ignore Dead_count.
 %% check_neighbours(8, Dead_count, Alive_count, _, _, _, _) ->
 %%     {Dead_count, Alive_count};
 
@@ -139,7 +146,7 @@ message_test() ->
 %% check_neighbours(Neighbour, Dead_count, Alive_count, X, Y, W, H) 
 %%   when (X+1 == W) ->
 %%     case Neighbour of 
-%%         2 -> check_neighbours(Neighbour+1, Dead_count+1, Alive_count, X, Y, W, H); %TODO: Better way to write this?
+%%         2 -> check_neighbours(Neighbour+1, Dead_count+1, Alive_count, X, Y, W, H); %Better way to write this?
 %%         4 -> check_neighbours(Neighbour+1, Dead_count+1, Alive_count, X, Y, W, H);
 %%         7 -> check_neighbours(Neighbour+1, Dead_count+1, Alive_count, X, Y, W, H)
 %%     end;
@@ -147,7 +154,7 @@ message_test() ->
 %% check_neighbours(Neighbour, Dead_count, Alive_count, X, Y, W, H) 
 %%   when (Y+1 == H) ->
 %%     case Neighbour of 
-%%         1 -> check_neighbours(Neighbour+1, Dead_count+1, Alive_count, X, Y, W, H) %TODO: Better way to write this?
+%%         1 -> check_neighbours(Neighbour+1, Dead_count+1, Alive_count, X, Y, W, H) %Better way to write this?
 %%     end;
 
 %% check_neighbours(Neighbour, Dead_count, Alive_count, X, Y, W, H) ->   
