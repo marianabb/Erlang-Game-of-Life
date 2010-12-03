@@ -1,7 +1,8 @@
 -module(life).
 -export([create/0, init_life/5, new_cell/5, 
          cell_loop/6, calculate_future/2, communicate/6,
-         calculate_max_n/4, unregister_all/2, message_test/0]).
+         calculate_max_n/4, unregister_all/2, message_test/0,
+         init/0]).
 
 
 -record(cell, {x, y, now_state}).
@@ -10,6 +11,12 @@
 create() ->    
     X = #cell{x=1, y=2, now_state=alive},
     io:format("x is: ~p", [X]).
+
+init() ->
+    %init_life(3, 3, [" X ", " X ", " X "], 0, 0).
+    printer:init(4, 4), %TODO: Descablear aqui
+    timer:sleep(5000),
+    init_life(4, 4, ["    ", " XX ", " XX ", "    "], 0, 0).
 
 
 % Function that receives the initial state and spawns a 
@@ -21,7 +28,6 @@ create() ->
 % Example call: life:init_life(3, 3, [" X ", " X ", " X "], 0, 0).
 % TODO: Verify that Width and Height are correct
 init_life(_, _, [], _, _) ->
-    % Next-step calculation should probably begin here
     ok;
 init_life(Width, Height, [Row | Board], N_row, _) when (Row == []) -> init_life(Width, Height, Board, N_row + 1, 0);
 init_life(Width, Height, [ [X|XS] | Board], N_row, N_col) ->
@@ -33,23 +39,23 @@ init_life(Width, Height, [ [X|XS] | Board], N_row, N_col) ->
         true -> State = 'dead'
     end,
     Pid = spawn(fun () -> new_cell(Width, Height, N_col, N_row, State) end),
-    io:format("Registering PID ~p as ~p~n", [Pid, list_to_atom(S_col ++ S_row)]),
+    %io:format("Registering PID ~p as ~p~n", [Pid, list_to_atom(S_col ++ S_row)]),
     register(list_to_atom(S_col ++ S_row), Pid),
     init_life(Width, Height, [XS | Board], N_row, N_col + 1).
 
 
 % Creates a new Cell with the first state and makes the
 % process execute cell_loop.
-new_cell(W, H, X, Y, State) ->    
+new_cell(W, H, X, Y, State) -> 
     Cell = #cell{x = X, y = Y, now_state = State},
-    io:format("New cell ~p created~n", [Cell]),
 
     % Calculate Max_neigh according to the coordinates
-    Max_neigh = calculate_max_n(X, Y, W, H),
+    Max_n = calculate_max_n(X, Y, W, H),
 
+    io:format("New cell ~p created with Max_neigh = ~p~n", [Cell, Max_n]),
     % TODO: Maybe I should wait a little before starting the loop...
     timer:sleep(1000),
-    cell_loop(W, H, Cell, 0, Max_neigh, 0).
+    cell_loop(W, H, Cell, 0, Max_n, 0).
 
 
 % Calculates the Maximum number of neighbours for a cell.
@@ -63,7 +69,7 @@ calculate_max_n(X, Y, W, H) ->
         (((X == 0) or (X+1 == W)) and ((Y > 0) and (Y < H))) or
         (((Y == 0) or (Y+1 == H)) and ((X > 0) and (X < W))) ->
             5
-    %TODO: Else case must throw exception
+    %TODO: Else case must throw exception - it already does! 
     end.
 
 
@@ -74,33 +80,42 @@ calculate_max_n(X, Y, W, H) ->
 %    If I do, calculate my next status, print it and change it.
 % 3. Wait to receive status from my neighbours.
 cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count) ->
-    io:format("I am cell ~p starting!!~n", [Cell]),
+    %io:format("I am cell ~p starting!!~n", [Cell]),
+    %io:format("My numbers are: NN = ~p, MN = ~p, AC = ~p~n", [Num_neigh, Max_neigh, Alive_count]),
 
     % Send my status to all my neighbours in the beginning of every tick
     % We know that at the start of a tick Num_neigh == 0
     if (Num_neigh == 0) ->
-            communicate(Cell#cell.x, Cell#cell.y, Cell#cell.now_state, 0, W, H)
-    end,
-
-    % Check if I have all my neighbors status. If I do, calculate my next status.
-    if (Num_neigh == Max_neigh) ->
-            io:format("I am cell ~p and I will calculate my next status~n", [Cell]),
-            Future = calculate_future(Alive_count, Cell#cell.now_state),
-            % If my status has changed, change the board
-            case future =/= Cell#cell.now_state of
-                true when (Future == 'alive') -> 
-                    frame ! {change_cell, Cell#cell.x, Cell#cell.y, purple}; %TODO: Don't I need a "printer"??
-                true when (Future == 'dead') ->
-                    frame ! {change_cell, Cell#cell.x, Cell#cell.y, white} %TODO: Don't I need a "printer"?? White?
-            end,
-            cell_loop(W, H, {cell, Cell#cell.x, Cell#cell.y, Future}, 
-                      0, Max_neigh, 0)
+            communicate(Cell#cell.x, Cell#cell.y, Cell#cell.now_state, 0, W, H);
+       true ->
+            %io:format("Cell ~p in the middle~n", [Cell])
+            ok
     end,
     
-    io:format("Cell ~p waiting...", [Cell]),
+    % Check if I have all my neighbors status. If I do, calculate my next status.
+    if (Num_neigh == Max_neigh) ->
+            %io:format("I am cell ~p and I will calculate my next status~n", [Cell]),
+            Future = calculate_future(Alive_count, Cell#cell.now_state),
+
+            % If my status has changed, change the board
+            case (Future =/= Cell#cell.now_state) of %TODO: No case needed
+                true ->
+                    io:format("************I am ~p and my status is now ~p~n", [Cell, Future]),
+                    printer ! {self(), {print_cell, Cell#cell.x, Cell#cell.y, Future}};
+                false ->
+                    io:format("************No change for cell ~p~n", [Cell]),
+                    printer ! {self(), {print_cell, Cell#cell.x, Cell#cell.y, Future}}
+            end,
+            cell_loop(W, H, {cell, Cell#cell.x, Cell#cell.y, Future}, 0, Max_neigh, 0);
+       true ->
+            %io:format("I am cell ~p and I still don't have all my neighbours~n", [Cell])
+            ok
+    end,
+    
+    io:format("Cell ~p waiting...~n", [Cell]),
     receive 
-        {Neighb, {st_sent, X, Y, N_status}} -> %TODO: remove coordinates!! Not using Neighb
-            io:format("Received status ~p from neighbour ~p~p~n", [N_status, X, Y]),
+        {Neighb, {st_sent, XN, YN, N_status}} -> %TODO: remove coordinates!! Not using Neighb
+            io:format("I, ~p~p, received status ~p from neighbour ~p~p~n", [Cell#cell.x, Cell#cell.y, N_status, XN, YN]),
             case N_status of
                 'alive' -> cell_loop(W, H, Cell, Num_neigh+1, Max_neigh, Alive_count+1);
                 'dead' -> cell_loop(W, H, Cell, Num_neigh+1, Max_neigh, Alive_count)
@@ -175,25 +190,19 @@ communicate(0, Y, Status, Neighbour, W, H)
     communicate(0, Y, Status, Neighbour+1, W, H);
 
 communicate(X, 0, Status, Neighbour, W, H)
-  when (Neighbour == 6) ->
+  when (Neighbour == 5) or (Neighbour == 6) or (Neighbour == 7) ->
     communicate(X, 0, Status, Neighbour+1, W, H);
 
 communicate(X, Y, Status, Neighbour, W, H)
-  when (X+1 == W) ->
-    case Neighbour of
-        2 -> communicate(X, Y, Status, Neighbour+1, W, H);    
-        4 -> communicate(X, Y, Status, Neighbour+1, W, H);
-        7 -> communicate(X, Y, Status, Neighbour+1, W, H)
-    end;
+  when (X+1 == W) and ((Neighbour == 2) or (Neighbour == 4) or (Neighbour == 7)) ->
+    communicate(X, Y, Status, Neighbour+1, W, H);
 
 communicate(X, Y, Status, Neighbour, W, H)
-  when (Y+1 == H) ->
-    case Neighbour of
-        1 -> communicate(X, Y, Status, Neighbour+1, W, H)
-    end;
+  when (Y+1 == H) and ((Neighbour == 0) or (Neighbour == 1) or (Neighbour == 2)) ->
+    communicate(X, Y, Status, Neighbour+1, W, H);
 
 communicate(X, Y, Status, Neighbour, W, H) ->  
-    io:format("DEBUG COMM: Cell ~p~p, Neigh = ~p~n", [X, Y, Neighbour]),
+    %io:format("DEBUG COMM: Cell ~p~p, Neigh = ~p~n", [X, Y, Neighbour]),
     case Neighbour of
         0 -> Name = list_to_atom(integer_to_list(X-1) ++ integer_to_list(Y+1)); %NW
         1 -> Name = list_to_atom(integer_to_list(X) ++ integer_to_list(Y+1));   %N
@@ -204,7 +213,8 @@ communicate(X, Y, Status, Neighbour, W, H) ->
         6 -> Name = list_to_atom(integer_to_list(X) ++ integer_to_list(Y-1));   %S
         7 -> Name = list_to_atom(integer_to_list(X+1) ++ integer_to_list(Y-1))  %SE
     end,
-    io:format("DEBUG COMM: Cell ~p~p, Name = ~p~n", [X, Y, Name]),
+
+    %io:format("DEBUG COMM: Cell ~p~p, Name = ~p~n", [X, Y, Name]),
     io:format("I am cell ~p~p, sending my status (~p) to cell ~p~n", [X, Y, Status, Name]),
     Name ! {self(), {st_sent, X, Y, Status}}, % REVIEW: Should I use my PID or my name? TODO: No coordinates!!
     communicate(X, Y, Status, Neighbour+1, W, H).
