@@ -48,7 +48,7 @@ new_cell(W, H, X, Y, State) ->
     Max_neigh = calculate_max_n(X, Y, W, H),
 
     % TODO: Maybe I should wait a little before starting the loop...
-    timer:sleep(3000),
+    timer:sleep(1000),
     cell_loop(W, H, Cell, 0, Max_neigh, 0).
 
 
@@ -97,22 +97,8 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count) ->
                       0, Max_neigh, 0)
     end,
     
+    io:format("Cell ~p waiting...", [Cell]),
     receive 
-%%         {From, {next}} -> %TODO; Not using From
-%%             %io:format("I am cell ~p starting!!~n", [Cell]),
-%%             {Dead_c, Alive_c} = check_neighbours(0, 0, 0, Cell#cell.x, Cell#cell.y, W, H),
-%%             io:format("I am Cell ~p my counts are: ~p dead, ~p alive~n", [Cell, Dead_c, Alive_c]),
-%%             io:format("I am Cell ~p, my future is: ~p~n", [Cell, calculate_future(Alive_c, Cell#cell.now_state)]),
-%%             %calculate_future(Alive_c, Cell#cell.now_state),
-%%             cell_loop(W, H, {cell, Cell#cell.x, Cell#cell.y, 
-%%                              Cell#cell.now_state, calculate_future(Alive_c, Cell#cell.now_state)}, 
-%%                       Num_neigh, Max_neigh, Alive_count);
-
-%%         {Neighb, {send_st}} ->
-%%             io:format("Sending my status to ~p~n", [Neighb]),
-%%             Neighb ! {receive_st, Cell#cell.now_state}, % REVIEW: should I send self()?
-%%             cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count);
-
         {Neighb, {st_sent, X, Y, N_status}} -> %TODO: remove coordinates!! Not using Neighb
             io:format("Received status ~p from neighbour ~p~p~n", [N_status, X, Y]),
             case N_status of
@@ -181,8 +167,8 @@ message_test() ->
 
 % Sends the status of Cell to all its neighbours 
 % If the neighbour is outside the board it will not be considered 
-communicate(_, _, _, 8, _, _) ->
-    io:format("I have sent my state to all my neighbours~n", []),
+communicate(X, Y, _, 8, _, _) ->
+    io:format("Cell ~p~p sent state to all its neighbours~n", [X, Y]),
     ok;
 communicate(0, Y, Status, Neighbour, W, H)
   when (Neighbour == 0) or (Neighbour == 3) or (Neighbour == 5) ->
@@ -207,6 +193,7 @@ communicate(X, Y, Status, Neighbour, W, H)
     end;
 
 communicate(X, Y, Status, Neighbour, W, H) ->  
+    io:format("DEBUG COMM: Cell ~p~p, Neigh = ~p~n", [X, Y, Neighbour]),
     case Neighbour of
         0 -> Name = list_to_atom(integer_to_list(X-1) ++ integer_to_list(Y+1)); %NW
         1 -> Name = list_to_atom(integer_to_list(X) ++ integer_to_list(Y+1));   %N
@@ -217,6 +204,7 @@ communicate(X, Y, Status, Neighbour, W, H) ->
         6 -> Name = list_to_atom(integer_to_list(X) ++ integer_to_list(Y-1));   %S
         7 -> Name = list_to_atom(integer_to_list(X+1) ++ integer_to_list(Y-1))  %SE
     end,
+    io:format("DEBUG COMM: Cell ~p~p, Name = ~p~n", [X, Y, Name]),
     io:format("I am cell ~p~p, sending my status (~p) to cell ~p~n", [X, Y, Status, Name]),
     Name ! {self(), {st_sent, X, Y, Status}}, % REVIEW: Should I use my PID or my name? TODO: No coordinates!!
     communicate(X, Y, Status, Neighbour+1, W, H).
