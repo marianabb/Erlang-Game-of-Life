@@ -171,7 +171,6 @@ loop(Head, Foot, W, H, Data) ->
     end.
 
 
-
 draw(Head, Foot, W, H, Data) ->
     draw_frame(Head, Foot, 
                draw_table(W, H, Data)).
