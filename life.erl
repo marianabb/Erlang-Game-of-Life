@@ -1,6 +1,6 @@
 -module(life).
 -export([create/0, init_life/5, new_cell/5, 
-         cell_loop/6, calculate_future/2, communicate/6,
+         cell_loop/7, calculate_future/2, communicate/6,
          calculate_max_n/4, unregister_all/2, message_test/0,
          init/0]).
 
@@ -55,7 +55,7 @@ new_cell(W, H, X, Y, State) ->
     io:format("New cell ~p created with Max_neigh = ~p~n", [Cell, Max_n]),
     % TODO: Maybe I should wait a little before starting the loop...
     timer:sleep(1000),
-    cell_loop(W, H, Cell, 0, Max_n, 0).
+    cell_loop(W, H, Cell, 0, Max_n, 0, 0).
 
 
 % Calculates the Maximum number of neighbours for a cell.
@@ -79,9 +79,16 @@ calculate_max_n(X, Y, W, H) ->
 % 2. Check if I have all my neighbours status. 
 %    If I do, calculate my next status, print it and change it.
 % 3. Wait to receive status from my neighbours.
-cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count) ->
+cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
     %io:format("I am cell ~p starting!!~n", [Cell]),
     %io:format("My numbers are: NN = ~p, MN = ~p, AC = ~p~n", [Num_neigh, Max_neigh, Alive_count]),
+
+    if
+        (Tick == 3) -> %TODO Create Max_ticks or eliminate
+            io:format("############################## NO MORE TICKS!!~n", []),
+            self() ! suicide;
+        true -> ok
+    end,
 
     % Send my status to all my neighbours in the beginning of every tick
     % We know that at the start of a tick Num_neigh == 0
@@ -106,20 +113,22 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count) ->
                     io:format("************No change for cell ~p~n", [Cell]),
                     printer ! {self(), {print_cell, Cell#cell.x, Cell#cell.y, Future}}
             end,
-            cell_loop(W, H, {cell, Cell#cell.x, Cell#cell.y, Future}, 0, Max_neigh, 0);
+            cell_loop(W, H, {cell, Cell#cell.x, Cell#cell.y, Future}, 0, Max_neigh, 0, Tick+1);
        true ->
             %io:format("I am cell ~p and I still don't have all my neighbours~n", [Cell])
             ok
     end,
     
-    io:format("Cell ~p waiting...~n", [Cell]),
+    %io:format("Cell ~p waiting...~n", [Cell]),
     receive 
         {Neighb, {st_sent, XN, YN, N_status}} -> %TODO: remove coordinates!! Not using Neighb
-            io:format("I, ~p~p, received status ~p from neighbour ~p~p~n", [Cell#cell.x, Cell#cell.y, N_status, XN, YN]),
+            %io:format("I, ~p~p, received status ~p from neighbour ~p~p~n", [Cell#cell.x, Cell#cell.y, N_status, XN, YN]),
             case N_status of
-                'alive' -> cell_loop(W, H, Cell, Num_neigh+1, Max_neigh, Alive_count+1);
-                'dead' -> cell_loop(W, H, Cell, Num_neigh+1, Max_neigh, Alive_count)
-            end
+                'alive' -> cell_loop(W, H, Cell, Num_neigh+1, Max_neigh, Alive_count+1, Tick);
+                'dead' -> cell_loop(W, H, Cell, Num_neigh+1, Max_neigh, Alive_count, Tick)
+            end;
+        suicide ->
+            void
     end.
 
 message_test() ->
@@ -215,7 +224,7 @@ communicate(X, Y, Status, Neighbour, W, H) ->
     end,
 
     %io:format("DEBUG COMM: Cell ~p~p, Name = ~p~n", [X, Y, Name]),
-    io:format("I am cell ~p~p, sending my status (~p) to cell ~p~n", [X, Y, Status, Name]),
+    %io:format("I am cell ~p~p, sending my status (~p) to cell ~p~n", [X, Y, Status, Name]),
     Name ! {self(), {st_sent, X, Y, Status}}, % REVIEW: Should I use my PID or my name? TODO: No coordinates!!
     communicate(X, Y, Status, Neighbour+1, W, H).
 
