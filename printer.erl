@@ -32,7 +32,7 @@ print_loop(P_total, P_count, Tick) ->
     end,
     
     receive
-        {From, {print_cell, X, Y, Status, C_tick}} when (C_tick == Tick) ->
+        {print_cell, X, Y, Status, C_tick} when (C_tick == Tick) ->
             %io:format("I am the printer, will print ~p for ~p~p~n", [Status, X, Y]),
             case Status of
                 'alive' -> frame ! {change_cell, X, Y, purple};

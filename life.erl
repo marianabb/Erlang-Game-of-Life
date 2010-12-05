@@ -49,7 +49,7 @@ init() ->
 % Example board: [" X ", " X ", " X "]
 % Example call: life:init_life(3, 3, [" X ", " X ", " X "], 0, 0).
 % Warning: It does not verify the correctness of Width, Height or Board.
-init_life(Width, Height, [], _, _) ->
+init_life(_, _, [], _, _) ->
     ok;
 init_life(Width, Height, [Row | Board], N_row, _) when (Row == []) -> 
     init_life(Width, Height, Board, N_row + 1, 0);
@@ -123,7 +123,7 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
             Future = calculate_future(Alive_count, Cell#cell.now_state),
 
             % Send my status in the current tick to the printer
-            printer ! {self(), {print_cell, Cell#cell.x, Cell#cell.y, Future, Tick}},
+            printer ! {print_cell, Cell#cell.x, Cell#cell.y, Future, Tick},
             
             % Loop again with the next tick
             cell_loop(W, H, {cell, Cell#cell.x, Cell#cell.y, Future}, 0, Max_neigh, 0, Tick+1);
@@ -133,20 +133,19 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
     
     receive 
         % Only process the message if N_tick corresponds with my Tick
-        {Neighb, {st_sent, XN, YN, N_status, N_tick}} when (N_tick == Tick) -> 
+        {st_sent, N_status, N_tick} when (N_tick == Tick) -> 
             case N_status of
                 'alive' -> cell_loop(W, H, Cell, Num_neigh+1, Max_neigh, Alive_count+1, Tick);
                 'dead' -> cell_loop(W, H, Cell, Num_neigh+1, Max_neigh, Alive_count, Tick)
             end;
         suicide_please ->
-            %TODO: unregister myself!
             void
     end.
 
 
 % Sends the status of Cell to all its neighbours 
 % If the neighbour is outside the board it will not be considered 
-communicate(X, Y, _, 8, _, _, _) ->
+communicate(_, _, _, 8, _, _, _) ->
     %io:format("Cell ~p~p sent state to all its neighbours~n", [X, Y]),
     ok;
 communicate(0, Y, Status, Neighbour, W, H, Tick)
@@ -178,7 +177,7 @@ communicate(X, Y, Status, Neighbour, W, H, Tick) ->
     end,
 
     %io:format("I am cell ~p~p, sending my status (~p) to cell ~p~n", [X, Y, Status, Name]),
-    Name ! {self(), {st_sent, X, Y, Status, Tick}}, % TODO: Coordinates only for debug
+    Name ! {st_sent, Status, Tick},
     communicate(X, Y, Status, Neighbour+1, W, H, Tick).
 
 
