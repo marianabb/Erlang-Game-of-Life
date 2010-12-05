@@ -16,9 +16,11 @@ init() ->
     %init_life(4, 4, ["    ", " XX ", " XX ", "    "], 0, 0).
     %init_life(4, 4, ["    ", " XXX", "XXX ", "    "], 0, 0).
     %init_life(6, 6, [" X    ", "  X   ", "XXX   ", "      ", "      ", "      "], 0, 0).
-    init_life(26, 10, [" X                        ", 
+    init_life(26, 12, [" X                        ", 
                        "  X                       ", 
                        "XXX                       ", 
+                       "                          ", 
+                       "                          ", 
                        "                          ", 
                        "                          ", 
                        "                          ", 
@@ -35,7 +37,7 @@ init() ->
 % represents one row of the board.
 % Example board: [" X ", " X ", " X "]
 % Example call: life:init_life(3, 3, [" X ", " X ", " X "], 0, 0).
-% TODO: Verify that Width and Height are correct
+% Warning: It does not verify the correctness of Width and Height.
 init_life(Width, Height, [], _, _) ->
     printer:init(Width, Height),
     ok;
@@ -51,7 +53,7 @@ init_life(Width, Height, [ [X|XS] | Board], N_row, N_col) ->
     end,
     Pid = spawn(fun () -> new_cell(Width, Height, N_col, N_row, State) end),
     %io:format("Registering PID ~p as ~p~n", [Pid, list_to_atom(S_col ++ S_row)]),
-    register(list_to_atom(S_col ++ S_row), Pid),
+    register(list_to_atom(S_col ++"_"++ S_row), Pid),
     init_life(Width, Height, [XS | Board], N_row, N_col + 1).
 
 
@@ -85,15 +87,15 @@ calculate_max_n(X, Y, W, H) ->
 
 % The function that controls the actions that every cell
 % must accomplish:
-% 1. Send my status to all my neighbours
-% 2. Check if I have all my neighbours status. 
-%    If I do, calculate my next status, print it and change it.
-% 3. Wait to receive status from my neighbours.
+% 1. Verify that we have arrived at the maximum number of ticks.
+% 2. Send my status to all my neighbours
+% 3. Check if I have all my neighbours status. 
+%    If I do, calculate my next status, send to the printer and change it.
+% 3. Wait to receive status from my neighbours from the tick that interests me.
 cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
 
     if
         (Tick == 35) -> %TODO Create Max_ticks or eliminate
-            %io:format("NO MORE TICKS!!~n", []),
             self() ! suicide_please;
         true -> ok
     end,
@@ -103,7 +105,7 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
     % We know that at the start of a tick Num_neigh == 0
     if (Num_neigh == 0) ->
             spawn(fun () -> sender(Cell#cell.x, Cell#cell.y, Cell#cell.now_state, 0, W, H, Tick) end);
-            %communicate(Cell#cell.x, Cell#cell.y, Cell#cell.now_state, 0, W, H);
+            %communicate(Cell#cell.x, Cell#cell.y, Cell#cell.now_state, 0, W, H); %TODO: Is the other p necessary?
        true -> ok
     end,
     
@@ -114,19 +116,13 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
 
             % Send my status in the current tick to the printer
             printer ! {self(), {print_cell, Cell#cell.x, Cell#cell.y, Future, Tick}},
-       
-            %TODO: Maybe wait a little here?
+            
+            % Loop again with the next tick
             cell_loop(W, H, {cell, Cell#cell.x, Cell#cell.y, Future}, 0, Max_neigh, 0, Tick+1);
 
-%%             receive
-%%                 continue ->
-%%                     io:format("Cell ~p was called to continue~n", [Cell]),
-%%                     cell_loop(W, H, {cell, Cell#cell.x, Cell#cell.y, Future}, 0, Max_neigh, 0, Tick+1)
-%%             end;
        true -> ok
     end,
     
-    %io:format("Cell ~p waiting on Tick ~p~n", [Cell, Tick]),
     receive 
         %TODO: Coordinates only for debug. Not using Neighb
         % Only process the message if N_tick corresponds with my Tick
@@ -176,14 +172,14 @@ communicate(X, Y, Status, Neighbour, W, H, Tick)
 
 communicate(X, Y, Status, Neighbour, W, H, Tick) ->  
     case Neighbour of
-        0 -> Name = list_to_atom(integer_to_list(X-1) ++ integer_to_list(Y+1)); %NW
-        1 -> Name = list_to_atom(integer_to_list(X) ++ integer_to_list(Y+1));   %N
-        2 -> Name = list_to_atom(integer_to_list(X+1) ++ integer_to_list(Y+1)); %NE
-        3 -> Name = list_to_atom(integer_to_list(X-1) ++ integer_to_list(Y));   %W
-        4 -> Name = list_to_atom(integer_to_list(X+1) ++ integer_to_list(Y));   %E
-        5 -> Name = list_to_atom(integer_to_list(X-1) ++ integer_to_list(Y-1)); %SW
-        6 -> Name = list_to_atom(integer_to_list(X) ++ integer_to_list(Y-1));   %S
-        7 -> Name = list_to_atom(integer_to_list(X+1) ++ integer_to_list(Y-1))  %SE
+        0 -> Name = list_to_atom(integer_to_list(X-1) ++"_"++ integer_to_list(Y+1)); %NW
+        1 -> Name = list_to_atom(integer_to_list(X) ++"_"++ integer_to_list(Y+1));   %N
+        2 -> Name = list_to_atom(integer_to_list(X+1) ++"_"++ integer_to_list(Y+1)); %NE
+        3 -> Name = list_to_atom(integer_to_list(X-1) ++"_"++ integer_to_list(Y));   %W
+        4 -> Name = list_to_atom(integer_to_list(X+1) ++"_"++ integer_to_list(Y));   %E
+        5 -> Name = list_to_atom(integer_to_list(X-1) ++"_"++ integer_to_list(Y-1)); %SW
+        6 -> Name = list_to_atom(integer_to_list(X) ++"_"++ integer_to_list(Y-1));   %S
+        7 -> Name = list_to_atom(integer_to_list(X+1) ++"_"++ integer_to_list(Y-1))  %SE
     end,
 
     %io:format("I am cell ~p~p, sending my status (~p) to cell ~p~n", [X, Y, Status, Name]),
