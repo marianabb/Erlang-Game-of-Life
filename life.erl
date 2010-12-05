@@ -4,7 +4,7 @@
          calculate_max_n/4, init/0]).
 
 
--record(cell, {x, y, now_state}).
+-record(cell, {x, y, now_state, ticks}).
 
 % Just a Cell creation test
 create() ->    
