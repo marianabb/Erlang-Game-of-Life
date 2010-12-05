@@ -1,3 +1,10 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Module: Printer                                                 %
+% Author: Mariana Bustamante <marianabb@gmail.com>                %
+% Description: Printer handler for Game of Life with concurrency  %
+% Created: December 5, 2010                                       %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 -module(printer).
 
 -export([init/2, print_loop/3]).
@@ -39,7 +46,7 @@ print_loop(P_total, P_count, Tick) ->
                 'dead' -> frame ! {change_cell, X, Y, white}
             end,
             printer:print_loop(P_total, P_count+1, Tick);
-        {From, {clear}} ->
+        clear ->
             io:format("I am the printer, clearing the board~n"),
             frame ! reset_cells,
             printer:print_loop(P_total, 0, 0)

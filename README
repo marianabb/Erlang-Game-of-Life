@@ -1,0 +1,11 @@
+Game of Life implementation in Erlang
+Author: Mariana Bustamante
+-------------------------------------
+
+To test run do the following:
+1. Compile the modules ehtml, frame, printer and life.
+2. Run life calling 'life:init().'
+3. Point your browser to http://localhost:8088/
+
+
+Changes in the board must be written directly into life.erl

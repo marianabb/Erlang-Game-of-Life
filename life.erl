@@ -1,3 +1,10 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Module: Life                                       %
+% Author: Mariana Bustamante <marianabb@gmail.com>   %
+% Description: Game of Life with concurrency         %
+% Created: December 5, 2010                          %
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 -module(life).
 -export([init_life/5, new_cell/5, cell_loop/7, 
          calculate_future/2, communicate/7,
@@ -15,22 +22,10 @@ init() ->
     %init_life(4, 4, ["    ", " XX ", " XX ", "    "], 0, 0).
     %init_life(4, 4, ["    ", " XXX", "XXX ", "    "], 0, 0).
     %init_life(6, 6, [" X    ", "  X   ", "XXX   ", "      ", "      ", "      "], 0, 0).
-%%     init_life(26, 12, [" X                        ", 
-%%                        "  X                       ", 
-%%                        "XXX                       ", 
-%%                        "                          ", 
-%%                        "                          ", 
-%%                        "                          ", 
-%%                        "                          ", 
-%%                        "                          ", 
-%%                        "                          ", 
-%%                        "                          ", 
-%%                        "                          ", 
-%%                        "                          "], 0, 0).
-    init_life(26, 12, ["X  X                      ", 
-                       "    X                     ", 
-                       "X   X                     ", 
-                       " XXXX                     ", 
+    init_life(26, 12, [" X                        ", 
+                       "  X                       ", 
+                       "XXX                       ", 
+                       "                          ", 
                        "                          ", 
                        "                          ", 
                        "                          ", 
@@ -39,6 +34,18 @@ init() ->
                        "                          ", 
                        "                          ", 
                        "                          "], 0, 0).
+%%     init_life(26, 12, ["X  X                      ", 
+%%                        "    X                     ", 
+%%                        "X   X                     ", 
+%%                        " XXXX                     ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          "], 0, 0).
 
 
 % Function that receives the initial state and spawns a 
