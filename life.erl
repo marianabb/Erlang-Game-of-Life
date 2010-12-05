@@ -15,7 +15,17 @@ init() ->
     %init_life(3, 3, [" X ", " X ", " X "], 0, 0).
     %init_life(4, 4, ["    ", " XX ", " XX ", "    "], 0, 0).
     %init_life(4, 4, ["    ", " XXX", "XXX ", "    "], 0, 0).
-    init_life(6, 6, [" X    ", "  X   ", "XXX   ", "      ", "      ", "      "], 0, 0).
+    %init_life(6, 6, [" X    ", "  X   ", "XXX   ", "      ", "      ", "      "], 0, 0).
+    init_life(26, 10, [" X                        ", 
+                       "  X                       ", 
+                       "XXX                       ", 
+                       "                          ", 
+                       "                          ", 
+                       "                          ", 
+                       "                          ", 
+                       "                          ", 
+                       "                          ", 
+                       "                          "], 0, 0).
 
 
 % Function that receives the initial state and spawns a 
@@ -82,8 +92,8 @@ calculate_max_n(X, Y, W, H) ->
 cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
 
     if
-        (Tick == 30) -> %TODO Create Max_ticks or eliminate
-            io:format("NO MORE TICKS!!~n", []),
+        (Tick == 35) -> %TODO Create Max_ticks or eliminate
+            %io:format("NO MORE TICKS!!~n", []),
             self() ! suicide_please;
         true -> ok
     end,
@@ -99,7 +109,7 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
     
     % Check if I have all my neighbors status. If I do, calculate my next status.
     if (Num_neigh == Max_neigh) ->
-            io:format("I am cell ~p and I will calculate my next status~n", [Cell]),
+            %io:format("I am cell ~p and I will calculate my next status~n", [Cell]),
             Future = calculate_future(Alive_count, Cell#cell.now_state),
 
             % Send my status in the current tick to the printer
@@ -116,12 +126,12 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
        true -> ok
     end,
     
-    io:format("---------Cell ~p waiting on Tick ~p~n", [Cell, Tick]),
+    %io:format("Cell ~p waiting on Tick ~p~n", [Cell, Tick]),
     receive 
         %TODO: Coordinates only for debug. Not using Neighb
         % Only process the message if N_tick corresponds with my Tick
         {Neighb, {st_sent, XN, YN, N_status, N_tick}} when (N_tick == Tick) -> 
-            io:format("I, ~p~p, received status ~p from neighbour ~p~p~n", [Cell#cell.x, Cell#cell.y, N_status, XN, YN]),
+            %io:format("I, ~p~p, received status ~p from neighbour ~p~p~n", [Cell#cell.x, Cell#cell.y, N_status, XN, YN]),
          
             case N_status of
                 'alive' -> cell_loop(W, H, Cell, Num_neigh+1, Max_neigh, Alive_count+1, Tick);
@@ -146,7 +156,7 @@ sender(X, Y, Status, Neighbour, W, H, Tick) ->
 % Sends the status of Cell to all its neighbours 
 % If the neighbour is outside the board it will not be considered 
 communicate(X, Y, _, 8, _, _, _) ->
-    io:format("Cell ~p~p sent state to all its neighbours~n", [X, Y]),
+    %io:format("Cell ~p~p sent state to all its neighbours~n", [X, Y]),
     ok;
 communicate(0, Y, Status, Neighbour, W, H, Tick)
   when (Neighbour == 0) or (Neighbour == 3) or (Neighbour == 5) ->
@@ -176,7 +186,7 @@ communicate(X, Y, Status, Neighbour, W, H, Tick) ->
         7 -> Name = list_to_atom(integer_to_list(X+1) ++ integer_to_list(Y-1))  %SE
     end,
 
-    io:format("I am cell ~p~p, sending my status (~p) to cell ~p~n", [X, Y, Status, Name]),
+    %io:format("I am cell ~p~p, sending my status (~p) to cell ~p~n", [X, Y, Status, Name]),
     Name ! {self(), {st_sent, X, Y, Status, Tick}}, % TODO: Coordinates only for debug
     communicate(X, Y, Status, Neighbour+1, W, H, Tick).
 

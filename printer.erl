@@ -41,6 +41,7 @@ print_loop(P_total, P_count, Tick) ->
     % If I printed all status of this tick, loop again with next Tick
     if
         (P_total == P_count) -> 
+            io:format("Current Tick = ~p~n", [Tick]),
             timer:sleep(1000), %Just in case I'm not done printing TODO: Review!
 %%             [Name ! continue || Name <- Names],
             print_loop(P_total, 0, Tick+1);
