@@ -1,25 +1,36 @@
 -module(life).
--export([create/0, init_life/5, new_cell/5, 
-         cell_loop/7, calculate_future/2, communicate/7,
+-export([init_life/5, new_cell/5, cell_loop/7, 
+         calculate_future/2, communicate/7,
          calculate_max_n/4, init/0]).
 
+-define(MAX_TICKS, 40).
 
 -record(cell, {x, y, now_state}).
 
-% Just a Cell creation test
-create() ->    
-    X = #cell{x=1, y=2, now_state=alive},
-    io:format("x is: ~p", [X]).
-
 init() ->
+    % The printer must be initialized here. Otherwise all cells must wait for it.
+    printer:init(26, 12), 
+    timer:sleep(2000), % Wait for the printer to be ready
     %init_life(3, 3, [" X ", " X ", " X "], 0, 0).
     %init_life(4, 4, ["    ", " XX ", " XX ", "    "], 0, 0).
     %init_life(4, 4, ["    ", " XXX", "XXX ", "    "], 0, 0).
     %init_life(6, 6, [" X    ", "  X   ", "XXX   ", "      ", "      ", "      "], 0, 0).
-    init_life(26, 12, [" X                        ", 
-                       "  X                       ", 
-                       "XXX                       ", 
-                       "                          ", 
+%%     init_life(26, 12, [" X                        ", 
+%%                        "  X                       ", 
+%%                        "XXX                       ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          "], 0, 0).
+    init_life(26, 12, ["X  X                      ", 
+                       "    X                     ", 
+                       "X   X                     ", 
+                       " XXXX                     ", 
                        "                          ", 
                        "                          ", 
                        "                          ", 
@@ -37,9 +48,8 @@ init() ->
 % represents one row of the board.
 % Example board: [" X ", " X ", " X "]
 % Example call: life:init_life(3, 3, [" X ", " X ", " X "], 0, 0).
-% Warning: It does not verify the correctness of Width and Height.
+% Warning: It does not verify the correctness of Width, Height or Board.
 init_life(Width, Height, [], _, _) ->
-    printer:init(Width, Height),
     ok;
 init_life(Width, Height, [Row | Board], N_row, _) when (Row == []) -> 
     init_life(Width, Height, Board, N_row + 1, 0);
@@ -66,8 +76,7 @@ new_cell(W, H, X, Y, State) ->
     Max_n = calculate_max_n(X, Y, W, H),
 
     io:format("New cell ~p created with Max_neigh = ~p~n", [Cell, Max_n]),
-    % Wait a little before starting the loop
-    timer:sleep(1000),
+    %timer:sleep(1000), % Wait for the printer
     cell_loop(W, H, Cell, 0, Max_n, 0, 0).
 
 
@@ -95,7 +104,7 @@ calculate_max_n(X, Y, W, H) ->
 cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
 
     if
-        (Tick == 35) -> %TODO Create Max_ticks or eliminate
+        (Tick == ?MAX_TICKS) ->
             self() ! suicide_please;
         true -> ok
     end,
@@ -104,8 +113,7 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
     % of every tick.
     % We know that at the start of a tick Num_neigh == 0
     if (Num_neigh == 0) ->
-            spawn(fun () -> sender(Cell#cell.x, Cell#cell.y, Cell#cell.now_state, 0, W, H, Tick) end);
-            %communicate(Cell#cell.x, Cell#cell.y, Cell#cell.now_state, 0, W, H); %TODO: Is the other p necessary?
+            communicate(Cell#cell.x, Cell#cell.y, Cell#cell.now_state, 0, W, H, Tick);
        true -> ok
     end,
     
@@ -124,11 +132,8 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
     end,
     
     receive 
-        %TODO: Coordinates only for debug. Not using Neighb
         % Only process the message if N_tick corresponds with my Tick
         {Neighb, {st_sent, XN, YN, N_status, N_tick}} when (N_tick == Tick) -> 
-            %io:format("I, ~p~p, received status ~p from neighbour ~p~p~n", [Cell#cell.x, Cell#cell.y, N_status, XN, YN]),
-         
             case N_status of
                 'alive' -> cell_loop(W, H, Cell, Num_neigh+1, Max_neigh, Alive_count+1, Tick);
                 'dead' -> cell_loop(W, H, Cell, Num_neigh+1, Max_neigh, Alive_count, Tick)
@@ -136,16 +141,6 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
         suicide_please ->
             %TODO: unregister myself!
             void
-    end.
-
-% Process that sends the status in the current tick to
-% all the neighbours of the cell.
-% After all the messages have been sent the process dies.
-sender(X, Y, Status, Neighbour, W, H, Tick) ->  
-    communicate(X, Y, Status, Neighbour, W, H, Tick),
-    self() ! die,
-    receive 
-        die -> void
     end.
 
 

@@ -25,7 +25,7 @@ print_loop(P_total, P_count, Tick) ->
     if
         (P_total == P_count) -> 
             io:format("Current Tick = ~p~n", [Tick]),
-            timer:sleep(1000), %Just in case I'm not done printing
+            timer:sleep(1000), %Print one tick at a time
             print_loop(P_total, 0, Tick+1);
         true ->
             ok
