@@ -10,30 +10,30 @@
          calculate_future/2, communicate/7,
          calculate_max_n/4, init/0]).
 
--define(MAX_TICKS, 40).
+-define(MAX_TICKS, 400).
 
 -record(cell, {x, y, now_state}).
 
 init() ->
     % The printer must be initialized here. Otherwise all cells must wait for it.
-    printer:init(26, 12), 
+    printer:init(54, 24), 
     timer:sleep(2000), % Wait for the printer to be ready
     %init_life(3, 3, [" X ", " X ", " X "], 0, 0).
     %init_life(4, 4, ["    ", " XX ", " XX ", "    "], 0, 0).
     %init_life(4, 4, ["    ", " XXX", "XXX ", "    "], 0, 0).
     %init_life(6, 6, [" X    ", "  X   ", "XXX   ", "      ", "      ", "      "], 0, 0).
-    init_life(26, 12, [" X                        ", 
-                       "  X                       ", 
-                       "XXX                       ", 
-                       "                          ", 
-                       "                          ", 
-                       "                          ", 
-                       "                          ", 
-                       "                          ", 
-                       "                          ", 
-                       "                          ", 
-                       "                          ", 
-                       "                          "], 0, 0).
+%%     init_life(26, 12, [" X                        ", 
+%%                        "  X                       ", 
+%%                        "XXX                       ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          ", 
+%%                        "                          "], 0, 0).
 %%     init_life(26, 12, ["X  X                      ", 
 %%                        "    X                     ", 
 %%                        "X   X                     ", 
@@ -46,6 +46,55 @@ init() ->
 %%                        "                          ", 
 %%                        "                          ", 
 %%                        "                          "], 0, 0).
+%%     init_life(44, 24, ["                                            ", 
+%%                        "                                            ", 
+%%                        "                                            ", 
+%%                        "                  X  X                      ", 
+%%                        "                      X                     ", 
+%%                        "                  X   X                     ", 
+%%                        "                   XXXX                     ", 
+%%                        "                                            ", 
+%%                        "                                            ", 
+%%                        "                                            ", 
+%%                        "                  X                         ", 
+%%                        "                   XX                       ", 
+%%                        "                    X                       ", 
+%%                        "                    X                       ", 
+%%                        "                   X                        ",
+%%                        "                                            ", 
+%%                        "                                            ", 
+%%                        "                  X  X                      ", 
+%%                        "                      X                     ", 
+%%                        "                  X   X                     ", 
+%%                        "                   XXXX                     ",
+%%                        "                                            ", 
+%%                        "                                            ", 
+%%                        "                                            "], 0, 0).
+    init_life(54, 24, ["                                                      ", 
+                       "                                                      ", 
+                       "                                                      ", 
+                       "                                                      ", 
+                       "                                                      ", 
+                       "                                                      ", 
+                       "                  XXX                                 ", 
+                       "                    X                                 ", 
+                       "                    X                                 ", 
+                       "                   X                                  ", 
+                       "                                 XXX              XX  ", 
+                       "                   X             X                 X  ",  
+                       "                    X            X                    ", 
+                       "  X                 X             X                   ", 
+                       "  XX              XXX                                 ",
+                       "                                  X                   ", 
+                       "                                 X                    ", 
+                       "                                 X                    ", 
+                       "                                 XXX                  ", 
+                       "                                                      ", 
+                       "                                                      ",
+                       "                                                      ", 
+                       "                                                      ", 
+                       "                                                      "], 0, 0).
+
 
 
 % Function that receives the initial state and spawns a 
