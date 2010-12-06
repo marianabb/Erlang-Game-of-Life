@@ -8,7 +8,8 @@
 -module(life).
 -export([init_life/5, new_cell/5, cell_loop/7, 
          calculate_future/2, communicate/7,
-         calculate_max_n/4, init/0]).
+         calculate_max_n/4, init/0,
+         which_neigh/6]).
 
 -define(MAX_TICKS, 400).
 
@@ -169,7 +170,8 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
     % of every tick.
     % We know that at the start of a tick Num_neigh == 0
     if (Num_neigh == 0) ->
-            communicate(Cell#cell.x, Cell#cell.y, Cell#cell.now_state, 0, W, H, Tick);
+            Outbox = which_neigh(Cell#cell.x, Cell#cell.y, W, H, Max_neigh, [0, 1, 2, 3, 4, 5, 6, 7]),
+            communicate(Cell#cell.x, Cell#cell.y, Cell#cell.now_state, Outbox, W, H, Tick);
        true -> ok
     end,
     
@@ -199,28 +201,32 @@ cell_loop(W, H, Cell, Num_neigh, Max_neigh, Alive_count, Tick) ->
     end.
 
 
-% Sends the status of Cell to all its neighbours 
-% If the neighbour is outside the board it will not be considered 
-communicate(_, _, _, 8, _, _, _) ->
+% Creates a list of the useful neighbours of a cell.
+% Useful must be [0, 1, 2, 3, 4, 5, 6, 7] at the beginning
+which_neigh(_, _, _, _, Max_neigh, Useful) 
+  when (length(Useful) == Max_neigh) -> Useful;
+
+which_neigh(0, Y, W, H, Max_neigh, Useful) ->     
+    which_neigh(W, Y, W, H, Max_neigh, Useful -- [0, 3, 5]);
+
+which_neigh(X, 0, W, H, Max_neigh, Useful) ->
+    which_neigh(X, H, W, H, Max_neigh, Useful -- [5, 6, 7]);
+
+which_neigh(X, Y, W, H, Max_neigh, Useful) 
+  when (X+1 == W) ->
+    which_neigh(W, Y, W, H, Max_neigh, Useful -- [2, 4, 7]);
+
+which_neigh(X, Y, W, H, Max_neigh, Useful) 
+  when (Y+1 == H) ->
+    which_neigh(X, H, W, H, Max_neigh, Useful -- [0, 1, 2]).
+
+
+% Sends the status of Cell to the neighbours provided on thw
+% Useful list. 
+communicate(_, _, _, [], _, _, _) ->
     %io:format("Cell ~p~p sent state to all its neighbours~n", [X, Y]),
     ok;
-communicate(0, Y, Status, Neighbour, W, H, Tick)
-  when (Neighbour == 0) or (Neighbour == 3) or (Neighbour == 5) ->
-    communicate(0, Y, Status, Neighbour+1, W, H, Tick);
-
-communicate(X, 0, Status, Neighbour, W, H, Tick)
-  when (Neighbour == 5) or (Neighbour == 6) or (Neighbour == 7) ->
-    communicate(X, 0, Status, Neighbour+1, W, H, Tick);
-
-communicate(X, Y, Status, Neighbour, W, H, Tick)
-  when (X+1 == W) and ((Neighbour == 2) or (Neighbour == 4) or (Neighbour == 7)) ->
-    communicate(X, Y, Status, Neighbour+1, W, H, Tick);
-
-communicate(X, Y, Status, Neighbour, W, H, Tick)
-  when (Y+1 == H) and ((Neighbour == 0) or (Neighbour == 1) or (Neighbour == 2)) ->
-    communicate(X, Y, Status, Neighbour+1, W, H, Tick);
-
-communicate(X, Y, Status, Neighbour, W, H, Tick) ->  
+communicate(X, Y, Status, [Neighbour | Useful], W, H, Tick) ->
     case Neighbour of
         0 -> Name = list_to_atom(integer_to_list(X-1) ++"_"++ integer_to_list(Y+1)); %NW
         1 -> Name = list_to_atom(integer_to_list(X) ++"_"++ integer_to_list(Y+1));   %N
@@ -234,8 +240,7 @@ communicate(X, Y, Status, Neighbour, W, H, Tick) ->
 
     %io:format("I am cell ~p~p, sending my status (~p) to cell ~p~n", [X, Y, Status, Name]),
     Name ! {st_sent, Status, Tick},
-    communicate(X, Y, Status, Neighbour+1, W, H, Tick).
-
+    communicate(X, Y, Status, Useful, W, H, Tick).
 
 
 % Applies the rules and calculates the next state according 
